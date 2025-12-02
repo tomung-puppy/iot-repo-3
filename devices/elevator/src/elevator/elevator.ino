@@ -1,17 +1,14 @@
 // pin Setting
-const int FIRST00_PIN = A0;
-const int FIRST01_PIN = 2;
-const int FIRST02_PIN = 3;
-const int SECOND00_PIN = 4;
-const int SECOND01_PIN = 5;
-const int SECOND02_PIN = 6;
-const int THIRD00_PIN = 7;
-const int LEDFIRST_PIN = 10;
-const int LEDSECOND_PIN = 9;
-const int LEDTHIRD_PIN = 8;
-const int BUTTONFIRST_PIN = 11;
-const int BUTTONSECOND_PIN = 12;
-const int BUTTONTHIRD_PIN = 13;
+const int DATA_PIN = 2;   // DS (Serial Data Input)
+const int CLOCK_PIN = 3;  // SHCP (Shift Register Clock)
+const int LATCH_PIN = 4;  // STCP (Storage Register Clock/Latch)
+
+const int LEDFIRST_PIN = 7;
+const int LEDSECOND_PIN = 8;
+const int LEDTHIRD_PIN = 9;
+const int BUTTONFIRST_PIN = 10;
+const int BUTTONSECOND_PIN = 11;
+const int BUTTONTHIRD_PIN = 12;
 
 // time/count control
 unsigned long previous_time = 0;
@@ -23,13 +20,38 @@ unsigned long wait_time = 0;
 // variables
 const int button_pin_arr[] = {BUTTONFIRST_PIN, BUTTONSECOND_PIN, BUTTONTHIRD_PIN};
 const int LED_pin_arr[] = {LEDFIRST_PIN, LEDSECOND_PIN, LEDTHIRD_PIN};
-const int ele_LED_pin_arr[] = {FIRST00_PIN, FIRST01_PIN, FIRST02_PIN, SECOND00_PIN, SECOND01_PIN, SECOND02_PIN, THIRD00_PIN};
+const byte ele_LED_pin_arr[] = {
+  B00000001, 
+  B00000010, 
+  B00000100, 
+  B00001000, 
+  B00010000, 
+  B00100000, 
+  B01000000
+};
 bool LED_stat[] = {false, false, false};
 
 enum{WAIT, UP, DOWN};
 int ele_mode = WAIT;
 int ele_dst[] = {0, 0};
 int ele_pos = 0;
+byte seven_seg_data_to_display;
+
+// 7-segment display data for numbers 1, 2, 3 (common anode, DP gfedcba)
+const byte seven_seg_digits[] = {
+  B11111001, // 1 (0층)
+  B10100100, // 2 (1층)
+  B10110000, // 3 (2층)
+};
+
+void updateDisplays(byte ele_led_data, byte seven_seg_data) {
+  digitalWrite(LATCH_PIN, LOW);
+  // Data for the second register (7-segment) is shifted out first.
+  shiftOut(DATA_PIN, CLOCK_PIN, MSBFIRST, seven_seg_data);
+  // Data for the first register (elevator LEDs) is shifted out second.
+  shiftOut(DATA_PIN, CLOCK_PIN, MSBFIRST, ele_led_data);
+  digitalWrite(LATCH_PIN, HIGH);
+}
 
 // 변환 함수
 
@@ -179,6 +201,9 @@ void arriveAtDstUpdateMode()
       Serial.println("Door is Opend");
       wait_time = 5000; 
     }
+    
+    seven_seg_data_to_display = seven_seg_digits[ele_cur_floor];
+    updateDisplays(ele_LED_pin_arr[ele_pos], seven_seg_data_to_display);
 
     assignEleDst();
 
@@ -231,50 +256,40 @@ void updateElePos()
 {
   switch (ele_mode)
   {
-  case WAIT:
-    digitalWrite(ele_LED_pin_arr[ele_pos], HIGH);
-    break;
-  case UP:
-    if (ele_pos == 6) // 안전장치
-    {
-      digitalWrite(ele_LED_pin_arr[ele_pos], HIGH);
-      Serial.println("Arrive at the upper limit but still on the mode of UP");
-    }
-    else
-    {
-      digitalWrite(ele_LED_pin_arr[ele_pos], LOW);
-      ele_pos += 1;
-      digitalWrite(ele_LED_pin_arr[ele_pos], HIGH);
-    }
-    break;
-  case DOWN:
-    if (ele_pos == 0) // 안전장치
-    {
-      digitalWrite(ele_LED_pin_arr[ele_pos], HIGH);
-      Serial.println("Arrive at the lower limit but still on the mode of DOWN");
-    }
-    else
-    {
-      digitalWrite(ele_LED_pin_arr[ele_pos], LOW);
-      ele_pos -= 1;
-      digitalWrite(ele_LED_pin_arr[ele_pos], HIGH);
-    }
-    break;
-  default:
-    break;
+    case WAIT:
+      break;
+    case UP:
+      if (ele_pos == 6) // 안전장치
+      {
+        Serial.println("Arrive at the upper limit but still on the mode of UP");
+      }
+      else
+      {
+        ele_pos += 1;
+      }
+      break;
+    case DOWN:
+      if (ele_pos == 0) // 안전장치
+      {
+        Serial.println("Arrive at the lower limit but still on the mode of DOWN");
+      }
+      else
+      {
+        ele_pos -= 1;
+      }
+      break;
+    default:
+      break;
   }
+  updateDisplays(ele_LED_pin_arr[ele_pos], seven_seg_data_to_display);
 }
 
 
 void setup() {
   Serial.begin(9600);
-  pinMode(FIRST00_PIN, OUTPUT);
-  pinMode(FIRST01_PIN, OUTPUT);
-  pinMode(FIRST02_PIN, OUTPUT);
-  pinMode(SECOND00_PIN, OUTPUT);
-  pinMode(SECOND01_PIN, OUTPUT);
-  pinMode(SECOND02_PIN, OUTPUT);
-  pinMode(THIRD00_PIN, OUTPUT);
+  pinMode(DATA_PIN, OUTPUT);
+  pinMode(CLOCK_PIN, OUTPUT);
+  pinMode(LATCH_PIN, OUTPUT);
 
   pinMode(LEDFIRST_PIN, OUTPUT);
   pinMode(LEDSECOND_PIN, OUTPUT);
@@ -283,6 +298,7 @@ void setup() {
   pinMode(BUTTONSECOND_PIN, INPUT);
   pinMode(BUTTONTHIRD_PIN, INPUT);
 
+  updateDisplays(ele_LED_pin_arr[ele_pos], seven_seg_digits[fromEleposeToFloor(ele_pos)]);
 }
 
 void loop() {
