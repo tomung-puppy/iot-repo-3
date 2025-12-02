@@ -14,7 +14,7 @@ public:
 	};
 
 private:
-	char entrance_device_id[50];
+	char m_entrance_device_id[50];
 
 	const int RST_PIN = 9;
 	const int SS_PIN = 10;
@@ -29,9 +29,9 @@ private:
 
 	MFRC522 rc522;
 	Stepper stepper;
-	unsigned long open_time;
-	bool is_detected;
-	bool is_valid;
+	unsigned long m_open_time;
+	bool m_is_detected;
+	bool m_is_valid;
 
 	MFRC522::StatusCode checkAuth(int index, MFRC522::MIFARE_Key key);
 	void toBytes(byte* buffer, int data, int offset = 0);

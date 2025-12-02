@@ -3,14 +3,14 @@
 
 bool Entrance::getIsValid()
 {
-	return is_valid;
+	return m_is_valid;
 }
 
 Entrance::Entrance() : rc522(SS_PIN, RST_PIN), stepper(MOTOR_STEPS, STEP_INT4, STEP_INT2, STEP_INT3, STEP_INT1) 
 {
-	open_time = 0;
-	is_detected = false;
-	is_valid = false;
+	m_open_time = 0;
+	m_is_detected = false;
+	m_is_valid = false;
 }
 
 void Entrance::setup() 
@@ -30,7 +30,7 @@ void Entrance::setup()
 void Entrance::loop() 
 {
 	// ✅ 상태 1: 카드 대기 중
-	if (open_time == 0)
+	if (m_open_time == 0)
 	{
 		waitForCard();
 		
@@ -42,17 +42,17 @@ void Entrance::loop()
 			key.keyByte[i] = 0xFF;
 		}
 		int i_data = 32767;
-		is_valid = false;
+		m_is_valid = false;
 
 		if (readInteger(index, key, i_data) == MFRC522::STATUS_OK) 
 		{
-			is_valid = true;
+			m_is_valid = true;
 			Serial.println("[DEBUG] Card is valid!");
 			createLog(EVENT_TYPE::VALID);
 		} 
 		else 
 		{
-			is_valid = false;
+			m_is_valid = false;
 			Serial.println("[DEBUG] Card is NOT valid");
 			createLog(EVENT_TYPE::FAILED);
 		}
@@ -60,34 +60,34 @@ void Entrance::loop()
 		rc522.PICC_HaltA();
 		rc522.PCD_StopCrypto1();
 
-		if (is_valid) 
+		if (m_is_valid) 
 		{
 			stepper.step(MOTOR_STEPS);
-			open_time = millis();
+			m_open_time = millis();
 
 			Serial.print("[DEBUG] Door opened at: ");
-			Serial.println(open_time);
+			Serial.println(m_open_time);
 			createLog(EVENT_TYPE::OPENED);
 		}
 	}
 	// ✅ 상태 2: 문이 열려있는 중 (거리 감지)
-	else if (open_time > 0 && (millis() - open_time) < 3000)
+	else if (m_open_time > 0 && (millis() - m_open_time) < 3000)
 	{
 		long dist = detectDistance();
 		
 		if (dist != 0 && dist < THRESHOLD) 
 		{
-			is_detected = true;
-			open_time = millis();
+			m_is_detected = true;
+			m_open_time = millis();
 			Serial.println("[DEBUG] Object detected, door stays open");
 		} 
 		else 
 		{
-			is_detected = false;
+			m_is_detected = false;
 		}
 	}
 	// ✅ 상태 3: 3초 초과 또는 문이 닫혀있음
-	else if ((millis() - open_time) >= 3000)
+	else if ((millis() - m_open_time) >= 3000)
 	{
 		closeDoor();
 	}
@@ -115,9 +115,9 @@ void Entrance::waitForCard()
 
 void Entrance::closeDoor() 
 {
-	open_time = 0;
-	is_detected = false;
-	is_valid = false;
+	m_open_time = 0;
+	m_is_detected = false;
+	m_is_valid = false;
 	stepper.step(-MOTOR_STEPS);
 	Serial.println("[DEBUG] Door closed");
 }
@@ -249,7 +249,7 @@ void Entrance::createLog(EVENT_TYPE type)
 {	
 	Serial.print(eventTypeToString(type));
 	Serial.print(",");
-	Serial.println(entrance_device_id);
+	Serial.println(m_entrance_device_id);
 }
 
 void Entrance::set_device_id()
@@ -267,5 +267,5 @@ void Entrance::set_device_id()
 		}
 	}
 	
-	sprintf(entrance_device_id, "entrance_device_%03d", chipId % 1000);
+	sprintf(m_entrance_device_id, "entrance_device_%03d", chipId % 1000);
 }
