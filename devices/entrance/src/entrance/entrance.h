@@ -7,7 +7,15 @@
 
 class Entrance 
 {
+public:
+	enum class EVENT_TYPE
+	{
+		OPENED, VALID, FAILED, UNKNOWN
+	};
+
 private:
+	char m_entrance_device_id[50];
+
 	const int RST_PIN = 9;
 	const int SS_PIN = 10;
 	const int STEP_INT4 = 6;
@@ -21,14 +29,18 @@ private:
 
 	MFRC522 rc522;
 	Stepper stepper;
-	unsigned long open_time;
-	bool is_detected;
-	bool is_valid;
+	unsigned long m_open_time;
+	bool m_is_detected;
+	bool m_is_valid;
+	byte m_card_uid[10];
+	byte m_card_uid_size;
 
 	MFRC522::StatusCode checkAuth(int index, MFRC522::MIFARE_Key key);
 	void toBytes(byte* buffer, int data, int offset = 0);
 	int toInteger(byte* buffer, int offset = 0);
 	long detectDistance();
+	const char* eventTypeToString(EVENT_TYPE type);
+	void set_device_id();
 
 public:
 	Entrance();
@@ -39,6 +51,8 @@ public:
 	bool getIsValid();
 	MFRC522::StatusCode readInteger(int index, MFRC522::MIFARE_Key key, int& data);
 	MFRC522::StatusCode writeInteger(int index, MFRC522::MIFARE_Key key, int data);
+
+	void createLog(EVENT_TYPE type);
 };
 
 #endif
