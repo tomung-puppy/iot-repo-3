@@ -36,6 +36,7 @@ public:
 	void loop();
 	void waitForCard();
 	void closeDoor();
+	bool getIsValid();
 	MFRC522::StatusCode readInteger(int index, MFRC522::MIFARE_Key key, int& data);
 	MFRC522::StatusCode writeInteger(int index, MFRC522::MIFARE_Key key, int data);
 };

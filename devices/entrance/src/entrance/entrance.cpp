@@ -1,5 +1,10 @@
 #include "entrance.h"
 
+bool getIsValid()
+{
+	return is_valid;
+}
+
 Entrance::Entrance() : rc522(SS_PIN, RST_PIN), stepper(MOTOR_STEPS, STEP_INT4, STEP_INT2, STEP_INT3, STEP_INT1) 
 {
 	open_time = 0;
