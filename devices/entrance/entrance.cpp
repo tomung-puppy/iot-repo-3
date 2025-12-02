@@ -1,10 +1,16 @@
 #include "entrance.h"
+#include <EEPROM.h>
+
+bool Entrance::getIsValid()
+{
+	return m_is_valid;
+}
 
 Entrance::Entrance() : rc522(SS_PIN, RST_PIN), stepper(MOTOR_STEPS, STEP_INT4, STEP_INT2, STEP_INT3, STEP_INT1) 
 {
-	open_time = 0;
-	is_detected = false;
-	is_valid = false;
+	m_open_time = 0;
+	m_is_detected = false;
+	m_is_valid = false;
 }
 
 void Entrance::setup() 
@@ -17,13 +23,14 @@ void Entrance::setup()
 	pinMode(ECHO, INPUT);
 	stepper.setSpeed(10);
 	Serial.println(F("Entrance System Setup Done"));
+	set_device_id();
 }
 
 
 void Entrance::loop() 
 {
 	// ✅ 상태 1: 카드 대기 중
-	if (open_time == 0)
+	if (m_open_time == 0)
 	{
 		waitForCard();
 		
@@ -35,48 +42,52 @@ void Entrance::loop()
 			key.keyByte[i] = 0xFF;
 		}
 		int i_data = 32767;
-		is_valid = false;
+		m_is_valid = false;
 
 		if (readInteger(index, key, i_data) == MFRC522::STATUS_OK) 
 		{
-			is_valid = true;
+			m_is_valid = true;
 			Serial.println("[DEBUG] Card is valid!");
+			createLog(EVENT_TYPE::VALID);
 		} 
 		else 
 		{
-			is_valid = false;
+			m_is_valid = false;
 			Serial.println("[DEBUG] Card is NOT valid");
+			createLog(EVENT_TYPE::FAILED);
 		}
 
 		rc522.PICC_HaltA();
 		rc522.PCD_StopCrypto1();
 
-		if (is_valid) 
+		if (m_is_valid) 
 		{
 			stepper.step(MOTOR_STEPS);
-			open_time = millis();
+			m_open_time = millis();
+
 			Serial.print("[DEBUG] Door opened at: ");
-			Serial.println(open_time);
+			Serial.println(m_open_time);
+			createLog(EVENT_TYPE::OPENED);
 		}
 	}
 	// ✅ 상태 2: 문이 열려있는 중 (거리 감지)
-	else if (open_time > 0 && (millis() - open_time) < 3000)
+	else if (m_open_time > 0 && (millis() - m_open_time) < 3000)
 	{
 		long dist = detectDistance();
 		
 		if (dist != 0 && dist < THRESHOLD) 
 		{
-			is_detected = true;
-			open_time = millis();
+			m_is_detected = true;
+			m_open_time = millis();
 			Serial.println("[DEBUG] Object detected, door stays open");
 		} 
 		else 
 		{
-			is_detected = false;
+			m_is_detected = false;
 		}
 	}
 	// ✅ 상태 3: 3초 초과 또는 문이 닫혀있음
-	else if ((millis() - open_time) >= 3000)
+	else if ((millis() - m_open_time) >= 3000)
 	{
 		closeDoor();
 	}
@@ -89,6 +100,12 @@ void Entrance::waitForCard()
 		if (rc522.PICC_IsNewCardPresent() && rc522.PICC_ReadCardSerial()) 
 		{
 			Serial.println("[DEBUG] {waitForCard} Card detected!");
+			m_card_uid_size = rc522.uid.size;
+			for (byte i = 0; i < m_card_uid_size; i++) 
+			{
+				m_card_uid[i] = rc522.uid.uidByte[i];
+			}
+
 			Serial.print("Card UID: ");
 			for (byte i = 0; i < rc522.uid.size; i++) 
 			{
@@ -104,10 +121,16 @@ void Entrance::waitForCard()
 
 void Entrance::closeDoor() 
 {
-	open_time = 0;
-	is_detected = false;
-	is_valid = false;
+	m_open_time = 0;
+	m_is_detected = false;
+	m_is_valid = false;
 	stepper.step(-MOTOR_STEPS);
+
+	digitalWrite(STEP_INT4, LOW);
+	digitalWrite(STEP_INT2, LOW);
+	digitalWrite(STEP_INT3, LOW);
+	digitalWrite(STEP_INT1, LOW);
+
 	Serial.println("[DEBUG] Door closed");
 }
 
@@ -213,4 +236,57 @@ MFRC522::StatusCode Entrance::writeInteger(int index, MFRC522::MIFARE_Key key, i
 	}
 
 	return status;
+}
+
+
+const char* Entrance::eventTypeToString(EVENT_TYPE type)
+{
+	switch (type)
+	{
+	case EVENT_TYPE::OPENED:
+		return "OPENED";
+
+	case EVENT_TYPE::VALID:
+		return "VALID";
+
+	case EVENT_TYPE::FAILED:
+		return "FAILED";
+
+	default:
+		return "UNKNOWN";
+	}
+}
+
+void Entrance::createLog(EVENT_TYPE type)
+{	
+	Serial.print(eventTypeToString(type));
+	Serial.print(",");
+	Serial.print(m_entrance_device_id);
+	Serial.print(",");
+	
+	// UID 출력 (HEX 형식)
+	for (byte i = 0; i < m_card_uid_size; i++) 
+	{
+		if (m_card_uid[i] < 0x10) Serial.print("0");
+		Serial.print(m_card_uid[i], HEX);
+	}
+	Serial.println();
+}
+
+void Entrance::set_device_id()
+{
+	uint32_t chipId = 0;
+	for (int i = 0; i < 4; i++) {
+		chipId |= ((EEPROM.read(i) & 0xFF) << (8 * i));
+	}
+	
+	// 칩 ID가 없으면 생성
+	if (chipId == 0 || chipId == 0xFFFFFFFF) {
+		chipId = millis() % 1000;
+		for (int i = 0; i < 4; i++) {
+			EEPROM.write(i, (chipId >> (8 * i)) & 0xFF);
+		}
+	}
+	
+	sprintf(m_entrance_device_id, "entrance_device_%03d", chipId % 1000);
 }
