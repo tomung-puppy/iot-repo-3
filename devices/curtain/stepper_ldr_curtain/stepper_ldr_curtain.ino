@@ -132,14 +132,8 @@ private:
 
     if (metricUpper == "MOTOR") {
       handleMotorCommand(valueUpper);
-    } else if (metricUpper == "TARGET") {
-      handleTargetCommand(value);
     } else if (metricUpper == "MODE") {
       handleModeCommand(valueUpper);
-    } else if (metricUpper == "THRESHOLD") {
-      handleThresholdCommand(value);
-    } else if (metricUpper == "CALIB") {
-      handleCalibrationCommand(valueUpper);
     } else {
       sendError("UNKNOWN");
     }
@@ -165,40 +159,6 @@ private:
     }
   }
 
-  void handleTargetCommand(const String& literalValue) {
-    bool ok = false;
-    long desiredStep = parseStepTarget(literalValue, ok);
-    if (!ok) {
-      sendError("LIMIT");
-      return;
-    }
-
-    controlMode = MODE_MANUAL;
-    targetStep = desiredStep;
-
-    if (abs(currentStep - targetStep) <= targetTolerance) {
-      targetActive = false;
-      setMotorDirection(0);
-      sendAck("TARGET", "REACHED");
-      return;
-    }
-
-    targetActive = true;
-    bool applied = false;
-    if (targetStep > currentStep) {
-      applied = setMotorDirection(1);
-    } else {
-      applied = setMotorDirection(-1);
-    }
-
-    if (!applied) {
-      targetActive = false;
-      sendAck("TARGET", "FAIL");
-    }
-
-    // TARGET 명령은 완료 시점에만 ACK를 보냄 (REACHED/FAIL)
-  }
-
   void handleModeCommand(const String& valueUpper) {
     if (valueUpper == "AUTO") {
       controlMode = MODE_AUTO;
@@ -208,32 +168,6 @@ private:
       controlMode = MODE_MANUAL;
       targetActive = false;
       setMotorDirection(0);
-    } else {
-      sendError("UNKNOWN");
-    }
-  }
-
-  void handleThresholdCommand(const String& literalValue) {
-    if (literalValue.length() == 0) {
-      sendError("LIMIT");
-      return;
-    }
-
-    int newThreshold = literalValue.toInt();
-    if (newThreshold <= 0) {
-      sendError("LIMIT");
-      return;
-    }
-
-    threshold = newThreshold;
-  }
-
-  void handleCalibrationCommand(const String& valueUpper) {
-    if (valueUpper == "ZERO") {
-      currentStep = 0;
-      targetActive = false;
-      setMotorDirection(0);
-      sendAck("CALIB", "DONE");
     } else {
       sendError("UNKNOWN");
     }
@@ -253,51 +187,6 @@ private:
     } else {
       motorDirection = 0;
     }
-  }
-
-  void updateTargetTracking() {
-    if (!targetActive) {
-      return;
-    }
-
-    if (labs(currentStep - targetStep) <= targetTolerance) {
-      targetActive = false;
-      setMotorDirection(0);
-      sendAck("TARGET", "REACHED");
-      return;
-    }
-
-    if ((motorDirection == 1 && currentStep >= curtainMaxSteps) ||
-        (motorDirection == -1 && currentStep <= 0)) {
-      targetActive = false;
-      sendAck("TARGET", "FAIL");
-      sendError("LIMIT");
-    }
-  }
-
-  long parseStepTarget(const String& literalValue, bool& ok) {
-    ok = false;
-    if (literalValue.length() == 0) {
-      return 0;
-    }
-
-    if (literalValue.indexOf('%') != -1) {
-      String percentText = literalValue;
-      percentText.replace("%", "");
-      float percent = percentText.toFloat();
-      if (percent < 0.0 || percent > 100.0) {
-        return 0;
-      }
-      ok = true;
-      return static_cast<long>((percent / 100.0f) * curtainMaxSteps);
-    }
-
-    long absolute = literalValue.toInt();
-    if (absolute < 0 || absolute > curtainMaxSteps) {
-      return 0;
-    }
-    ok = true;
-    return absolute;
   }
 
   bool setMotorDirection(int direction) {
