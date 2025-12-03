@@ -10,7 +10,6 @@ Stepper stepper(STEPS, 10, 11, 12, 13);
 
 unsigned long previousMillis = 0;
 const long interval = 5000;
-const char* deviceId = "DHT-01";
 
 bool motorRunning = false;  // 자동 제어 상태
 bool AirOnControl = false;  // 에어컨 수동 제어 상태
@@ -28,16 +27,13 @@ void handleHumidityAndTemperatureAIRHEAT()
   {
     if (dht.getData())
     {
-      float tempDeg = dht.getTemperature();
+      int tempDeg = dht.getTemperature();
       int hum = dht.getHumidity();
-      Serial.println("---------");
-      Serial.println(deviceId);
-      Serial.print("온도:");
-      Serial.print(tempDeg, 1);
-      Serial.println("°C");
-      Serial.print("습도:");
-      Serial.print(hum);
-      Serial.println("%");
+      Serial.print("SEN");
+      Serial.print(",TEM,") ;
+      Serial.print(tempDeg) ;
+      Serial.print(",HUM,");
+      Serial.println(hum) ;
 
       if (hum < 45)
       {
@@ -60,16 +56,13 @@ void handleHumidityAndTemperatureAIRHUM()
   {
     if (dht.getData())
     {
-      float tempDeg = dht.getTemperature();
+      int tempDeg = dht.getTemperature();
       int hum = dht.getHumidity();
-      Serial.println("---------");
-      Serial.println(deviceId);
-      Serial.print("온도:");
-      Serial.print(tempDeg, 1);
-      Serial.println("°C");
-      Serial.print("습도:");
-      Serial.print(hum);
-      Serial.println("%");
+      Serial.print("SEN");
+      Serial.print(",TEM,") ;
+      Serial.print(tempDeg) ;
+      Serial.print(",HUM,");
+      Serial.println(hum) ;
 
       if (tempDeg >= 28)
       {
@@ -95,17 +88,14 @@ void handleHumidityAndTemperatureHEATHUM()
   if (currentMillis - previousMillis >= interval)
   {
     if (dht.getData())
-    {
-      float tempDeg = dht.getTemperature();
+    {      
+      int tempDeg = dht.getTemperature();
       int hum = dht.getHumidity();
-      Serial.println("---------");
-      Serial.println(deviceId);
-      Serial.print("온도:");
-      Serial.print(tempDeg, 1);
-      Serial.println("°C");
-      Serial.print("습도:");
-      Serial.print(hum);
-      Serial.println("%");
+      Serial.print("SEN");
+      Serial.print(",TEM,") ;
+      Serial.print(tempDeg) ;
+      Serial.print(",HUM,");
+      Serial.println(hum) ;
       
       if (tempDeg >= 28)
       {
@@ -131,17 +121,14 @@ void handleHumidityAndTemperatureAIR()
   if (currentMillis - previousMillis >= interval)
   {
     if (dht.getData())
-    {
-      float tempDeg = dht.getTemperature();
+    {      
+      int tempDeg = dht.getTemperature();
       int hum = dht.getHumidity();
-      Serial.println("---------");
-      Serial.println(deviceId);
-      Serial.print("온도:");
-      Serial.print(tempDeg, 1);
-      Serial.println("°C");
-      Serial.print("습도:");
-      Serial.print(hum);
-      Serial.println("%");
+      Serial.print("SEN");
+      Serial.print(",TEM,") ;
+      Serial.print(tempDeg) ;
+      Serial.print(",HUM,");
+      Serial.println(hum) ;
 
       if (hum < 45)
       {
@@ -187,17 +174,14 @@ void handleHumidityAndTemperatureHEAT()
   if (currentMillis - previousMillis >= interval)
   {
     if (dht.getData())
-    {
-      float tempDeg = dht.getTemperature();
+    {      
+      int tempDeg = dht.getTemperature();
       int hum = dht.getHumidity();
-      Serial.println("---------");
-      Serial.println(deviceId);
-      Serial.print("온도:");
-      Serial.print(tempDeg, 1);
-      Serial.println("°C");
-      Serial.print("습도:");
-      Serial.print(hum);
-      Serial.println("%");
+      Serial.print("SEN");
+      Serial.print(",TEM,") ;
+      Serial.print(tempDeg) ;
+      Serial.print(",HUM,");
+      Serial.println(hum) ;
 
       if (hum < 45)
       {
@@ -243,17 +227,14 @@ void handleHumidityAndTemperatureHUM()
   if (currentMillis - previousMillis >= interval)
   {
     if (dht.getData())
-    {
-      float tempDeg = dht.getTemperature();
+    {      
+      int tempDeg = dht.getTemperature();
       int hum = dht.getHumidity();
-      Serial.println("---------");
-      Serial.println(deviceId);
-      Serial.print("온도:");
-      Serial.print(tempDeg, 1);
-      Serial.println("°C");
-      Serial.print("습도:");
-      Serial.print(hum);
-      Serial.println("%");
+      Serial.print("SEN");
+      Serial.print(",TEM,") ;
+      Serial.print(tempDeg) ;
+      Serial.print(",HUM,");
+      Serial.println(hum) ;
 
       if (hum < 45)
       {
@@ -303,17 +284,14 @@ void handleHumidityAndTemperature()
   if (currentMillis - previousMillis >= interval)
   {
     if (dht.getData())
-    {
-      float tempDeg = dht.getTemperature();
+    {      
+      int tempDeg = dht.getTemperature();
       int hum = dht.getHumidity();
-      Serial.println("---------");
-      Serial.println(deviceId);
-      Serial.print("온도:");
-      Serial.print(tempDeg, 1);
-      Serial.println("°C");
-      Serial.print("습도:");
-      Serial.print(hum);
-      Serial.println("%");
+      Serial.print("SEN");
+      Serial.print(",TEM,") ;
+      Serial.print(tempDeg) ;
+      Serial.print(",HUM,");
+      Serial.println(hum) ;
 
       if (hum < 45)
       {
@@ -365,17 +343,14 @@ void handleHumidityAndTemperatureNO()
   if (currentMillis - previousMillis >= interval)
   {
     if (dht.getData())
-    {
-      float tempDeg = dht.getTemperature();
+    {      
+      int tempDeg = dht.getTemperature();
       int hum = dht.getHumidity();
-      Serial.println("---------");
-      Serial.println(deviceId);
-      Serial.print("온도:");
-      Serial.print(tempDeg, 1);
-      Serial.println("°C");
-      Serial.print("습도:");
-      Serial.print(hum);
-      Serial.println("%");
+      Serial.print("SEN");
+      Serial.print(",TEM,") ;
+      Serial.print(tempDeg) ;
+      Serial.print(",HUM,");
+      Serial.println(hum) ;
     }
     previousMillis = currentMillis;
   }
@@ -401,49 +376,82 @@ void loop()
     
     if (received == 'A')
     {
+      Serial.print("ACK");
+      Serial.print(",AIR");
+      Serial.println(",1");
       AirOnControl = true;
       AirStop = false;
       motorRunning = true;
     }
     else if (received == 'B')
     {
+      Serial.print("ACK");
+      Serial.print(",AIR");
+      Serial.println(",0");
       AirOnControl = false;
       AirStop = true;
       motorRunning = false;
     }
     else if (received == 'C')
     {
+      Serial.print("ACK");
+      Serial.print(",HEAT");
+      Serial.println(",1");
       HeatOnControl = true;
       HeatStop = false;
       analogWrite(R_LED, HIGH);
     }
     else if (received == 'D')
     {
+      Serial.print("ACK");
+      Serial.print(",HEAT");
+      Serial.println(",0");
       HeatOnControl = false;
       HeatStop = true;
       analogWrite(R_LED, LOW);
     }
     else if (received == 'E')
     {
+      Serial.print("ACK");
+      Serial.print(",HUMI");
+      Serial.println(",1");
       HumOnControl = true;
       HumStop = false;
       digitalWrite(relayPin, HIGH);
     }
     else if (received == 'F')
     {
+      Serial.print("ACK");
+      Serial.print(",HUMI");
+      Serial.println(",0");
       HumOnControl = false;
       HumStop = true;
       digitalWrite(relayPin, LOW);
     }
     else if (received == 'G')
     {
+      Serial.print("ACK");
+      Serial.print(",AIR");
+      Serial.println(",-1");
       AirOnControl = false;
       AirStop = false;
+      motorRunning = false;
+    }
+    else if (received == 'H')
+    {
+      Serial.print("ACK");
+      Serial.print(",HEAT");
+      Serial.println(",-1");
       HeatOnControl = false;
       HeatStop = false;
+    }
+    else if (received == 'I')
+    {
+      Serial.print("ACK");
+      Serial.print(",HUMI");
+      Serial.println(",-1");
       HumOnControl = false;
       HumStop = false;
-      motorRunning = false;
     }
   }
   
