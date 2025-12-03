@@ -32,8 +32,8 @@ const byte ele_LED_pin_arr[] =
 };
 bool LED_stat[] = {false, false, false};
 
-enum{WAIT, UP, DOWN};
-int ele_mode = WAIT;
+enum class ElevatorMode {WAIT, UP, DOWN};
+ElevatorMode ele_mode = ElevatorMode::WAIT;
 int ele_dst[] = {0, 0};
 int ele_pos = 0;
 byte seven_seg_data_to_display;
@@ -97,7 +97,7 @@ void assignEleDst()
     {
       switch (ele_mode)
       {
-        case UP:
+        case ElevatorMode::UP:
           if (ele_pos <= fromFloorToElepos(max_req))
           {
             ele_dst[1] = max_req;
@@ -111,7 +111,7 @@ void assignEleDst()
             ele_dst[0] = min_req;
           }
           break;
-        case DOWN:
+        case ElevatorMode::DOWN:
           if (ele_pos >= fromFloorToElepos(min_req))
           {
             ele_dst[0] = min_req;
@@ -124,13 +124,13 @@ void assignEleDst()
             ele_dst[1] = max_req;
           }
           break;
-        case WAIT:
+        case ElevatorMode::WAIT:
           ele_dst[0] = min_req;
           ele_dst[1] = max_req;
           if (ele_pos > fromFloorToElepos(min_req))
-            ele_mode = DOWN;
+            ele_mode = ElevatorMode::DOWN;
           else if (ele_pos < fromFloorToElepos(min_req))
-            ele_mode = UP;
+            ele_mode = ElevatorMode::UP;
           else
             Serial.println("The elevator is already on the floor!");
       }
@@ -139,7 +139,7 @@ void assignEleDst()
     {
       switch (ele_mode)
       {
-        case UP:
+        case ElevatorMode::UP:
           if (ele_pos % 3 == 0)
           {
             min_req = fromEleposeToFloor(ele_pos);
@@ -151,7 +151,7 @@ void assignEleDst()
             max_req = fromEleposeToFloor(ele_pos) + 1;
           }
           break;
-        case DOWN:
+        case ElevatorMode::DOWN:
           if (ele_pos % 3 == 0)
           {
             min_req = fromEleposeToFloor(ele_pos);
@@ -213,36 +213,36 @@ void arriveAtDstUpdateMode()
 
     switch (ele_mode)
     {
-      case WAIT:
+      case ElevatorMode::WAIT:
         break;
 
-      case UP:
+      case ElevatorMode::UP:
         if (ele_cur_floor ==  ele_dst[1])
         {
           if (ele_cur_floor == ele_dst[0])
           {
-            ele_mode = WAIT;
+            ele_mode = ElevatorMode::WAIT;
             Serial.println("Switch Mode : UP -> WAIT");
           }
           else
           {
-            ele_mode = DOWN;
+            ele_mode = ElevatorMode::DOWN;
             Serial.println("Switch Mode : UP -> DOWN");
           }
         }
         break;
 
-      case DOWN:
+      case ElevatorMode::DOWN:
         if (ele_cur_floor ==  ele_dst[0])
         {
           if (ele_cur_floor == ele_dst[1])
           {
-            ele_mode = WAIT;
+            ele_mode = ElevatorMode::WAIT;
             Serial.println("Switch Mode : DOWN -> WAIT");
           }
           else
           {
-            ele_mode = UP;
+            ele_mode = ElevatorMode::UP;
             Serial.println("Switch Mode : DOWN -> UP");
           }
         }
@@ -259,9 +259,9 @@ void updateElePos()
 {
   switch (ele_mode)
   {
-    case WAIT:
+    case ElevatorMode::WAIT:
       break;
-    case UP:
+    case ElevatorMode::UP:
       if (ele_pos == 6) // 안전장치
       {
         Serial.println("Arrive at the upper limit but still on the mode of UP");
@@ -271,7 +271,7 @@ void updateElePos()
         ele_pos += 1;
       }
       break;
-    case DOWN:
+    case ElevatorMode::DOWN:
       if (ele_pos == 0) // 안전장치
       {
         Serial.println("Arrive at the lower limit but still on the mode of DOWN");
@@ -381,7 +381,7 @@ void loop() {
   if (wait_time == 0) {
     if (current_time - previous_time > 1000) // 1초마다 엘리베이터 이동
     {
-      if (ele_mode != WAIT)
+      if (ele_mode != ElevatorMode::WAIT)
       {
         Serial.print("Upper Dst: "); Serial.print(ele_dst[1]+1); Serial.print(" Lower Dst: "); Serial.println(ele_dst[0]+1);
       }
