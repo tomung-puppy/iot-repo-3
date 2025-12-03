@@ -39,7 +39,7 @@ int ele_pos = 0;
 byte seven_seg_data_to_display;
 
 void sendElevatorModeToPC(ElevatorMode mode) {
-  Serial.print("SEN,ele_dir,");
+  Serial.print("SEN,ELE_DIR,");
   if (mode == ElevatorMode::WAIT) {
     Serial.println("0");
   } else if (mode == ElevatorMode::UP) {
@@ -218,8 +218,10 @@ void arriveAtDstUpdateMode()
       Serial.print("This is floor "); Serial.println(ele_cur_floor+1);
       Serial.println("Door is Opend");
       wait_time = millis() + 5000; 
-      Serial.print("ACK,floor,0");
-      Serial.println(ele_cur_floor+1);
+      Serial.print("SEN,FLOOR,");
+      Serial.println(ele_cur_floor + 1);
+      Serial.print("ACK,FLOOR,");
+      Serial.println(ele_cur_floor + 1);
     }
     
     seven_seg_data_to_display = seven_seg_digits[ele_cur_floor];
@@ -325,7 +327,7 @@ void handleSerialCommand()
     String cmdTarget = command.substring(firstComma + 1, secondComma);
     String cmdValue = command.substring(secondComma + 1);
 
-    if (cmdType == "CMO" && cmdTarget == "floor") 
+    if (cmdType == "CMO" && cmdTarget == "FLOOR") 
     {
       int floorNum = cmdValue.toInt();
       if (floorNum >= 1 && floorNum <= 3) 
