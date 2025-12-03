@@ -94,7 +94,7 @@ void Entrance::loop()
 				{
 					offset += sprintf(uidBuffer + offset, "%02X", m_card_uid[i]);
 				}
-				createLog("SEN", String(uidBuffer), 1);
+				createLog("SEN", "RFID_VALID", String(uidBuffer));
 			} 
 			else 
 			{
@@ -106,7 +106,7 @@ void Entrance::loop()
 				{
 					offset += sprintf(uidBuffer + offset, "%02X", m_card_uid[i]);
 				}
-				createLog("SEN", String(uidBuffer), 0);
+				createLog("SEN", "RFID_DENY", String(uidBuffer));
 			}
 
 			rc522.PICC_HaltA();
@@ -120,8 +120,8 @@ void Entrance::loop()
 
 			Serial.print("[DEBUG] Door opened at: ");
 			Serial.println(m_open_time);
-			createLog("SEN", "MOTOR", 1);
-			createLog("CMD", "ELE", 1);
+			createLog("SEN", "MOTOR", String(1));
+			createLog("CMD", "FLOOR", String(1));
 			m_is_valid = false;\
 		}
 	}
@@ -135,7 +135,7 @@ void Entrance::loop()
 			m_is_detected = true;
 			m_open_time = millis();
 			Serial.println("[DEBUG] Object detected, door stays open");
-			createLog("SEN", "DISTANCE", (float)dist);
+			createLog("SEN", "DISTANCE", (String)dist);
 		} 
 		else 
 		{
@@ -187,7 +187,7 @@ void Entrance::closeDoor()
 	digitalWrite(STEP_INT3, LOW);
 	digitalWrite(STEP_INT1, LOW);
 
-	createLog("SEN", "MOTOR", -1);
+	createLog("SEN", "MOTOR", String(-1));
 }
 
 MFRC522::StatusCode Entrance::checkAuth(int index, MFRC522::MIFARE_Key key) 
@@ -289,30 +289,8 @@ MFRC522::StatusCode Entrance::writeInteger(int index, MFRC522::MIFARE_Key key, i
 	return status;
 }
 
-
-const char* Entrance::eventTypeToString(EVENT_TYPE type)
+void Entrance::createLog(String dataType, String metricName, String value)
 {
-	switch (type)
-	{
-	case EVENT_TYPE::OPENED:
-		return "OPENED";
-
-	case EVENT_TYPE::VALID:
-		return "VALID";
-
-	case EVENT_TYPE::FAILED:
-		return "FAILED";
-
-	default:
-		return "UNKNOWN";
-	}
-}
-
-void Entrance::createLog(String dataType, String metricName, float value)
-{	
-	Serial.print(m_entrance_device_id);
-	Serial.print(DELIMITER);
-
 	Serial.print(dataType);
 	Serial.print(DELIMITER);
 	
@@ -344,7 +322,7 @@ void Entrance::parseSerialCommand(String command)
 	int firstDelimiter = command.indexOf(DELIMITER);
 	if (firstDelimiter == -1) 
 	{
-		Serial.println("[ERROR] Invalid command format");
+		//Serial.println("[ERROR] Invalid command format");
 		return;
 	}
 
@@ -353,7 +331,7 @@ void Entrance::parseSerialCommand(String command)
 	int secondDelimiter = command.indexOf(DELIMITER, firstDelimiter + 1);
 	if (secondDelimiter == -1) 
 	{
-		Serial.println("[ERROR] Invalid command format");
+		//Serial.println("[ERROR] Invalid command format");
 		return;
 	}
 
@@ -369,13 +347,13 @@ void Entrance::parseSerialCommand(String command)
 		}
 		else 
 		{
-			Serial.println("[ERROR] Unknown metric name");
+			//Serial.println("[ERROR] Unknown metric name");
 		}
 	}
 	else 
 	{
-		Serial.print("[ERROR] Unknown data type: ");
-		Serial.println(dataType);
+		//Serial.print("[ERROR] Unknown data type: ");
+		//Serial.println(dataType);
 	}
 }
 
