@@ -240,24 +240,24 @@ class WindowClass(QMainWindow, from_class) :
         self.serial_threads['dht_00'].write(command)
 
     def curtain_open(self):
-        command = "CMO,CUR,OPEN\n"
+        command = "CMO,MOTOR,OPEN\n"
         if 'cur_00' in self.serial_threads:
             self.serial_threads['cur_00'].write(command)
 
     def curtain_close(self):
-        command = "CMO,CUR,CLOSE\n"
+        command = "CMO,MOTOR,CLOSE\n"
         if 'cur_00' in self.serial_threads:
             self.serial_threads['cur_00'].write(command)
 
     def curtain_stop(self):
-        command = "CMO,CUR,STOP\n"
+        command = "CMO,MOTOR,STOP\n"
         if 'cur_00' in self.serial_threads:
             self.serial_threads['cur_00'].write(command)
 
     def curtain_auto(self):
         self.curtain_auto_mode = not self.curtain_auto_mode
         mode = "1" if self.curtain_auto_mode else "0"
-        command = f"CMO,CUR,AUTO,{mode}\n"
+        command = f"CMO,MODE,AUTO,{mode}\n"
         if 'cur_00' in self.serial_threads:
             self.serial_threads['cur_00'].write(command)
 
@@ -330,9 +330,9 @@ class WindowClass(QMainWindow, from_class) :
             if data_type == 'SEN':
                 try:
                     value = parts[2]
-                    if metric_name == 'POS':
+                    if metric_name == 'CUR_STEP':
                         self.progressBar_cur.setValue(int(value))
-                    elif metric_name == 'LUX':
+                    elif metric_name == 'LIGHT':
                         self.lcdNumber_lux.display(int(value))
                 except (ValueError, IndexError) as e:
                     print(f"Error parsing curtain sensor data '{data}': {e}")
@@ -341,8 +341,8 @@ class WindowClass(QMainWindow, from_class) :
                     print(f"[ERROR] invalid curtain ack: {data!r}")
                     return
                 value = parts[2]
-                if metric_name == 'AUTO':
-                    state = "ON" if value == "1" else "OFF"
+                if metric_name == 'MOTOR':
+                    state = "OPEN" if value == "1" else "CLOSE" if value == "2" else "STOP"
                     self.label_curState.setText(f"AUTO {state}")
                 elif metric_name == 'STATE':
                     self.label_curState.setText(value) # e.g., OPEN, CLOSE, STOP
