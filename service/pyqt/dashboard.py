@@ -16,7 +16,7 @@ from_class = uic.loadUiType("./dashboard.ui")[0]
 SERIAL_PORTS = {
     'ele_00': 'COM3',
     'ent_00': 'COM4',
-    'curtain': 'COM5',
+    'cur_00': 'COM5',
     'dht_00': '/dev/ttyACM0',
 }
 
@@ -141,6 +141,11 @@ class WindowClass(QMainWindow, from_class) :
         self.pushButton_heat.clicked.connect(self.control_heat)
         self.pushButton_humi.clicked.connect(self.control_hum)
 
+        self.pushButton_curOpen.clicked.connect(self.curtain_open)
+        self.pushButton_curClose.clicked.connect(self.curtain_close)
+        self.pushButton_curStop.clicked.connect(self.curtain_stop)
+        self.pushButton_curAuto.clicked.connect(self.curtain_auto)
+        
         # Initially hide all check icons
         self.label_ele_1f.setText("")
         self.label_ele_2f.setText("")
@@ -149,6 +154,7 @@ class WindowClass(QMainWindow, from_class) :
         self.air_state = 0
         self.heat_state = 0
         self.hum_state = 0
+        self.curtain_auto_mode = False
 
     def init_serial_ports(self):
         for name, port in SERIAL_PORTS.items():
@@ -233,6 +239,28 @@ class WindowClass(QMainWindow, from_class) :
             self.hum_state = 0
         self.serial_threads['dht_00'].write(command)
 
+    def curtain_open(self):
+        command = "CMO,CUR,OPEN\n"
+        if 'cur_00' in self.serial_threads:
+            self.serial_threads['cur_00'].write(command)
+
+    def curtain_close(self):
+        command = "CMO,CUR,CLOSE\n"
+        if 'cur_00' in self.serial_threads:
+            self.serial_threads['cur_00'].write(command)
+
+    def curtain_stop(self):
+        command = "CMO,CUR,STOP\n"
+        if 'cur_00' in self.serial_threads:
+            self.serial_threads['cur_00'].write(command)
+
+    def curtain_auto(self):
+        self.curtain_auto_mode = not self.curtain_auto_mode
+        mode = "1" if self.curtain_auto_mode else "0"
+        command = f"CMO,CUR,AUTO,{mode}\n"
+        if 'cur_00' in self.serial_threads:
+            self.serial_threads['cur_00'].write(command)
+
     def handle_serial_data(self, port, data):
         device_name = None
         for name, p in SERIAL_PORTS.items():
@@ -290,9 +318,34 @@ class WindowClass(QMainWindow, from_class) :
             except Exception as e:
                 print(f"Error in dht_00 data handling from data '{data}': {e}")
         
-        elif device_name == 'curtain':
-            print(f"Curtain data: {data}")
-            pass
+        elif device_name == 'cur_00':
+            parts = data.split(',')
+            if len(parts) < 2:
+                print(f"[ERROR] invalid curtain data: {data!r}")
+                return
+            
+            data_type = parts[0]
+            metric_name = parts[1]
+
+            if data_type == 'SEN':
+                try:
+                    value = parts[2]
+                    if metric_name == 'POS':
+                        self.progressBar_cur.setValue(int(value))
+                    elif metric_name == 'LUX':
+                        self.lcdNumber_lux.display(int(value))
+                except (ValueError, IndexError) as e:
+                    print(f"Error parsing curtain sensor data '{data}': {e}")
+            elif data_type == 'ACK':
+                if len(parts) < 3:
+                    print(f"[ERROR] invalid curtain ack: {data!r}")
+                    return
+                value = parts[2]
+                if metric_name == 'AUTO':
+                    state = "ON" if value == "1" else "OFF"
+                    self.label_curState.setText(f"AUTO {state}")
+                elif metric_name == 'STATE':
+                    self.label_curState.setText(value) # e.g., OPEN, CLOSE, STOP
 
 
 if __name__ == "__main__":
