@@ -406,19 +406,22 @@
      <string>커튼 Auto On/Off</string>
     </property>
    </widget>
-   <widget class="QLabel" name="label_curState">
-    <property name="geometry">
-     <rect>
-      <x>430</x>
-      <y>400</y>
-      <width>66</width>
-      <height>18</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>state</string>
-    </property>
-   </widget>
+    <widget class="QLabel" name="label_curState">
+     <property name="geometry">
+      <rect>
+        <x>150</x>
+        <y>390</y>
+        <width>300</width>
+        <height>20</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string/>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+     </property>
+    </widget>
    <widget class="QPushButton" name="pushButton_heat">
     <property name="geometry">
      <rect>

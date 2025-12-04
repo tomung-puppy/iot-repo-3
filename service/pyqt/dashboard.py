@@ -118,7 +118,7 @@ class Ui_Dialog(object):
         self.pushButton_curAuto.setGeometry(QtCore.QRect(430, 430, 121, 26))
         self.pushButton_curAuto.setObjectName("pushButton_curAuto")
         self.label_curState = QtWidgets.QLabel(parent=self.groupBox_home)
-        self.label_curState.setGeometry(QtCore.QRect(430, 400, 66, 18))
+        # self.label_curState.setGeometry(QtCore.QRect(160, 400, 520, 18))
         self.label_curState.setObjectName("label_curState")
         self.pushButton_heat = QtWidgets.QPushButton(parent=self.groupBox_home)
         self.pushButton_heat.setGeometry(QtCore.QRect(200, 220, 151, 30))
@@ -138,6 +138,32 @@ class Ui_Dialog(object):
         self.pushButton_2f.clicked.connect(self.elevator_2f_call)
         self.pushButton_3f.clicked.connect(self.elevator_3f_call)
         self.pushButton_e.clicked.connect(self.entrance_open)
+
+        self.pushButton_curOpen.clicked.connect(self.curtain_open)
+        self.pushButton_curClose.clicked.connect(self.curtain_close)
+        self.pushButton_curStop.clicked.connect(self.curtain_stop)
+        self.pushButton_curAuto.clicked.connect(self.curtain_enable_auto)
+        self.progressBar_cur.setRange(0, 100)
+
+        self.curtain_max_steps = int(1.3 * 2048)
+        self.curtain_auto_mode = True
+        self.curtain_motion_state = "정지"
+        self.curtain_status_message = ""
+        self.progressBar_cur.setRange(0, 100)
+        self._refresh_curtain_controls()
+
+        self.pushButton_curOpen.clicked.connect(self.curtain_open)
+        self.pushButton_curClose.clicked.connect(self.curtain_close)
+        self.pushButton_curStop.clicked.connect(self.curtain_stop)
+        self.pushButton_curAuto.clicked.connect(self.curtain_enable_auto)
+        self.progressBar_cur.setRange(0, 100)
+
+        self.curtain_max_steps = int(1.3 * 2048)
+        self.curtain_auto_mode = True
+        self.curtain_motion_state = "정지"
+        self.curtain_status_message = ""
+        self.progressBar_cur.setRange(0, 100)
+        self._refresh_curtain_controls()
 
         # 초기 상태: 모든 체크 아이콘 숨김
         self.label_ele_1f.setText("")
@@ -168,7 +194,7 @@ class Ui_Dialog(object):
         self.label_airState.setText(_translate("Dialog", "state"))
         self.label_heatState.setText(_translate("Dialog", "state"))
         self.label_humiState.setText(_translate("Dialog", "state"))
-        self.pushButton_curAuto.setText(_translate("Dialog", "커튼 Auto On/Off"))
+        self.pushButton_curAuto.setText(_translate("Dialog", "커튼 Auto 복귀"))
         self.label_curState.setText(_translate("Dialog", "state"))
         self.pushButton_heat.setText(_translate("Dialog", "히터 ON/OFF/Auto"))
         self.pushButton_air.setText(_translate("Dialog", "에어컨 ON/OFF/Auto"))
@@ -311,6 +337,117 @@ class Ui_Dialog(object):
                 print(f"[ERROR] 상태 조회 실패: {e}")
 
             time.sleep(self.polling_interval)
+
+
+    def _handle_sensor(self, metric_name, value):
+        if metric_name == "FLOOR":
+            try:
+                self.lcdNumber_floor.display(int(float(value)))
+            except ValueError:
+                print(f"[ERROR] invalid floor number: {value!r}")
+            return
+
+        if metric_name == "RFID_ACCESS":
+            self.le_e_id.setText(str(value))
+            self.label_e_approv.setText("✅")
+            return
+        if metric_name == "RFID_DENY":
+            self.le_e_id.setText(str(value))
+            self.label_e_approv.setText("❌")
+            return
+        if metric_name == "MOTOR" and value == "-1":
+            self.le_e_id.clear()
+            self.label_e_approv.setText("")
+            return
+
+        if metric_name == "LIGHT":
+            try:
+                self.lcdNumber_lux.display(float(value))
+            except ValueError:
+                print(f"[ERROR] invalid light value: {value!r}")
+            return
+        if metric_name == "CUR_STEP":
+            self._update_curtain_progress(value)
+            return
+        if metric_name == "MOTOR_DIR":
+            self._handle_curtain_direction(value)
+            return
+
+        print(f"[INFO] sensor metric ignored: {metric_name},{value}")
+
+
+    def curtain_open(self):
+        self.serial_thread.write("CMO,MOTOR,OPEN\n")
+        self._mark_manual_mode_requested()
+        self._set_curtain_status_message("요청:OPEN")
+
+    def curtain_close(self):
+        self.serial_thread.write("CMO,MOTOR,CLOSE\n")
+        self._mark_manual_mode_requested()
+        self._set_curtain_status_message("요청:CLOSE")
+
+    def curtain_stop(self):
+        self.serial_thread.write("CMO,MOTOR,STOP\n")
+        self._mark_manual_mode_requested()
+        self._set_curtain_status_message("요청:STOP")
+
+    def curtain_enable_auto(self):
+        self.serial_thread.write("CMO,MODE,AUTO\n")
+        self._set_curtain_status_message("요청:AUTO")
+
+    def _handle_curtain_direction(self, value):
+        try:
+            direction = int(float(value))
+        except ValueError:
+            print(f"[ERROR] invalid motor direction: {value!r}")
+            return
+
+        if direction > 0:
+            motion_text = "열림 중"
+        elif direction < 0:
+            motion_text = "닫힘 중"
+        else:
+            motion_text = "정지"
+
+        self._set_curtain_motion_state(motion_text)
+
+    def _update_curtain_progress(self, step_value):
+        try:
+            steps = float(step_value)
+        except ValueError:
+            print(f"[ERROR] invalid curtain step value: {step_value!r}")
+            return
+
+        if self.curtain_max_steps <= 0:
+            return
+
+        percentage = max(0, min(100, int((steps / self.curtain_max_steps) * 100)))
+        self.progressBar_cur.setValue(percentage)
+
+    def _refresh_curtain_controls(self):
+        self.pushButton_curAuto.setText("커튼 Auto 복귀")
+        self._refresh_curtain_status_label()
+
+    def _set_curtain_motion_state(self, text):
+        self.curtain_motion_state = text
+        self.curtain_status_message = ""
+        self._refresh_curtain_status_label()
+
+    def _set_curtain_status_message(self, text):
+        self.curtain_status_message = text
+        self._refresh_curtain_status_label()
+
+    def _refresh_curtain_status_label(self):
+        mode_text = "AUTO" if self.curtain_auto_mode else "MANUAL"
+        parts = [f"모드: {mode_text}", f"상태: {self.curtain_motion_state}"]
+        if self.curtain_status_message:
+            parts.append(self.curtain_status_message)
+        self.label_curState.setText('  |  '.join(filter(None, parts)))
+
+    def _mark_manual_mode_requested(self):
+        if self.curtain_auto_mode:
+            self.curtain_auto_mode = False
+            self._refresh_curtain_controls()
 
 
 def main():
