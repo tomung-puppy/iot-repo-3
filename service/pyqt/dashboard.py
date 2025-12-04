@@ -12,15 +12,13 @@ from collections import deque
 from_class = uic.loadUiType("service/pyqt/dashboard.ui")[0]
 
 # Define serial port configurations
-# Adjust the COM port based on your environment
 SERIAL_PORTS = {
-    'ele_00': '/com',
-    'ent_00': 'COM4',
-    'cur_00': '/dev/ttyACM0',
-    'dht_00': 'COM6',
+    'ele_00': '/dev/ttyACM0',
+    'ent_00': '/dev/ttyACM1',
+    'cur_00': '/dev/ttyACM2',
+    'dht_00': '/dev/ttyACM3',
 }
 
-# 그래프를 그리는 캔버스 클래스
 class GraphCanvas(FigureCanvas):
     def __init__(self, parent=None):
         self.fig = Figure(figsize=(8, 6))
@@ -122,39 +120,59 @@ class WindowClass(QMainWindow, from_class) :
         super().__init__()
         self.setupUi(self)
 
+        self._initialize_state()
+        self._setup_ui_components()
+        self._connect_signals()
+
         self.serial_threads = {}
         self.init_serial_ports()
 
-        # 그래프 캔버스 생성 및 추가
+    def _initialize_state(self):
+        """Initializes all state variables."""
+        self.air_state = 0
+        self.heat_state = 0
+        self.hum_state = 0
+        
+        # Curtain state variables
+        self.curtain_auto_mode = False
+        self.curtain_max_steps = 1000  # Default value, might be updated from device
+        self.curtain_motion_state = "정지"
+        self.curtain_status_message = ""
+
+    def _setup_ui_components(self):
+        """Sets up UI elements like graphs and initial label texts."""
+        # Graph Canvas
         self.graph_canvas = GraphCanvas()
         layout = QVBoxLayout(self.widget_graph)
         layout.addWidget(self.graph_canvas)
         self.widget_graph.setLayout(layout)
 
-        # Connect buttons to slots
+        # Initial labels
+        self.label_ele_1f.setText("")
+        self.label_ele_2f.setText("")
+        self.label_ele_3f.setText("")
+        self._refresh_curtain_status_label()
+
+    def _connect_signals(self):
+        """Connects all UI element signals to their slots."""
+        # Elevator buttons
         self.pushButton_1f.clicked.connect(self.elevator_1f_call)
         self.pushButton_2f.clicked.connect(self.elevator_2f_call)
         self.pushButton_3f.clicked.connect(self.elevator_3f_call)
+
+        # Entrance button
         self.pushButton_e.clicked.connect(self.entrance_open)
 
+        # DHT control buttons
         self.pushButton_air.clicked.connect(self.control_air)
         self.pushButton_heat.clicked.connect(self.control_heat)
         self.pushButton_humi.clicked.connect(self.control_hum)
 
+        # Curtain control buttons
         self.pushButton_curOpen.clicked.connect(self.curtain_open)
         self.pushButton_curClose.clicked.connect(self.curtain_close)
         self.pushButton_curStop.clicked.connect(self.curtain_stop)
         self.pushButton_curAuto.clicked.connect(self.curtain_auto)
-        
-        # Initially hide all check icons
-        self.label_ele_1f.setText("")
-        self.label_ele_2f.setText("")
-        self.label_ele_3f.setText("")
-
-        self.air_state = 0
-        self.heat_state = 0
-        self.hum_state = 0
-        self.curtain_auto_mode = False
 
     def init_serial_ports(self):
         for name, port in SERIAL_PORTS.items():
@@ -164,103 +182,74 @@ class WindowClass(QMainWindow, from_class) :
             self.serial_threads[name] = thread
             print(f"Started serial thread for {name} on {port}")
 
+    # --- Device Control Methods ---
+    def _send_command(self, device, command):
+        """Safely sends a command to a specified device."""
+        if device in self.serial_threads:
+            self.serial_threads[device].write(command)
+        else:
+            print(f"Device '{device}' not connected.")
+
     def entrance_open(self):
-        command = "CMO,MOTOR,1\n"
-        if 'ent_00' in self.serial_threads:
-            self.serial_threads['ent_00'].write(command)
-            self.label_e_approv.setText("✅")
+        self._send_command('ent_00', "CMO,MOTOR,1\n")
+        self.label_e_approv.setText("✅")
 
     def elevator_1f_call(self):
-        command = "CMO,FLOOR,1\n"
-        if 'ele_00' in self.serial_threads:
-            self.serial_threads['ele_00'].write(command)
-            self.label_ele_1f.setText("✅")
+        self._send_command('ele_00', "CMO,FLOOR,1\n")
+        self.label_ele_1f.setText("✅")
 
     def elevator_2f_call(self):
-        command = "CMO,FLOOR,2\n"
-        if 'ele_00' in self.serial_threads:
-            self.serial_threads['ele_00'].write(command)
-            self.label_ele_2f.setText("✅")
+        self._send_command('ele_00', "CMO,FLOOR,2\n")
+        self.label_ele_2f.setText("✅")
 
     def elevator_3f_call(self):
-        command = "CMO,FLOOR,3\n"
-        if 'ele_00' in self.serial_threads:
-            self.serial_threads['ele_00'].write(command)
-            self.label_ele_3f.setText("✅")
+        self._send_command('ele_00', "CMO,FLOOR,3\n")
+        self.label_ele_3f.setText("✅")
 
     def control_air(self):
-        if 'dht_00' not in self.serial_threads:
-            return
-        if self.air_state == 0:
-            command = "A"
-            self.label_airState.setText("ON")
-            self.air_state = 1
-        elif self.air_state == 1:
-            command = "B"
-            self.label_airState.setText("AUTO")
-            self.air_state = 2
-        else:
-            command = "G"
-            self.label_airState.setText("OFF")
-            self.air_state = 0
-        self.serial_threads['dht_00'].write(command)
+        states = [(0, "A", "ON", 1), (1, "B", "AUTO", 2), (2, "G", "OFF", 0)]
+        current_state_index = self.air_state
+        command, text, next_state = states[current_state_index][1:]
+        self.air_state = next_state
+        self.label_airState.setText(text)
+        self._send_command('dht_00', command)
 
     def control_heat(self):
-        if 'dht_00' not in self.serial_threads:
-            return
-        if self.heat_state == 0:
-            command = "C"
-            self.label_heatState.setText("ON")
-            self.heat_state = 1
-        elif self.heat_state == 1:
-            command = "D"
-            self.label_heatState.setText("AUTO")
-            self.heat_state = 2
-        else:
-            command = "H"
-            self.label_heatState.setText("OFF")
-            self.heat_state = 0
-        self.serial_threads['dht_00'].write(command)
+        states = [(0, "C", "ON", 1), (1, "D", "AUTO", 2), (2, "H", "OFF", 0)]
+        current_state_index = self.heat_state
+        command, text, next_state = states[current_state_index][1:]
+        self.heat_state = next_state
+        self.label_heatState.setText(text)
+        self._send_command('dht_00', command)
 
     def control_hum(self):
-        if 'dht_00' not in self.serial_threads:
-            return
-        if self.hum_state == 0:
-            command = "E"
-            self.label_humiState.setText("ON")
-            self.hum_state = 1
-        elif self.hum_state == 1:
-            command = "F"
-            self.label_humiState.setText("AUTO")
-            self.hum_state = 2
-        else:
-            command = "I"
-            self.label_humiState.setText("OFF")
-            self.hum_state = 0
-        self.serial_threads['dht_00'].write(command)
+        states = [(0, "E", "ON", 1), (1, "F", "AUTO", 2), (2, "I", "OFF", 0)]
+        current_state_index = self.hum_state
+        command, text, next_state = states[current_state_index][1:]
+        self.hum_state = next_state
+        self.label_humiState.setText(text)
+        self._send_command('dht_00', command)
 
     def curtain_open(self):
-        command = "CMO,MOTOR,OPEN\n"
-        if 'cur_00' in self.serial_threads:
-            self.serial_threads['cur_00'].write(command)
+        self._send_command('cur_00', "CMO,MOTOR,OPEN\n")
+        self._mark_manual_mode_requested()
+        self._set_curtain_status_message("요청:OPEN")
 
     def curtain_close(self):
-        command = "CMO,MOTOR,CLOSE\n"
-        if 'cur_00' in self.serial_threads:
-            self.serial_threads['cur_00'].write(command)
+        self._send_command('cur_00', "CMO,MOTOR,CLOSE\n")
+        self._mark_manual_mode_requested()
+        self._set_curtain_status_message("요청:CLOSE")
 
     def curtain_stop(self):
-        command = "CMO,MOTOR,STOP\n"
-        if 'cur_00' in self.serial_threads:
-            self.serial_threads['cur_00'].write(command)
+        self._send_command('cur_00', "CMO,MOTOR,STOP\n")
+        self._mark_manual_mode_requested()
+        self._set_curtain_status_message("요청:STOP")
 
     def curtain_auto(self):
-        self.curtain_auto_mode = not self.curtain_auto_mode
-        mode = "1" if self.curtain_auto_mode else "0"
-        command = f"CMO,MODE,AUTO,{mode}\n"
-        if 'cur_00' in self.serial_threads:
-            self.serial_threads['cur_00'].write(command)
+        self._send_command('cur_00', "CMO,MODE,AUTO\n")
+        self._set_curtain_status_message("요청:AUTO")
 
+    # --- Serial Data Handling ---
     def handle_serial_data(self, port, data):
         device_name = None
         for name, p in SERIAL_PORTS.items():
@@ -272,80 +261,154 @@ class WindowClass(QMainWindow, from_class) :
             print(f"Data from unknown port {port}: {data}")
             return
 
-        if device_name == 'ele_00':
-            if data == "ACK,FLOOR,1":
-                self.label_ele_1f.setText("")
-            elif data == "ACK,FLOOR,2":
-                self.label_ele_2f.setText("")
-            elif data == "ACK,FLOOR,3":
-                self.label_ele_3f.setText("")
-            elif data.startswith("SEN,FLOOR,"):
-                try:
-                    floor_number = int(data.split(',')[2])
-                    self.lcdNumber_floor.display(floor_number)
-                except (ValueError, IndexError) as e:
-                    print(f"Error parsing elevator floor number from data '{data}': {e}")
+        handlers = {
+            'ele_00': self._handle_ele_00_data,
+            'ent_00': self._handle_ent_00_data,
+            'dht_00': self._handle_dht_00_data,
+            'cur_00': self._handle_cur_00_data,
+        }
         
-        elif device_name == 'ent_00':
-            parts = data.split(',')
-            if len(parts) != 3:
-                print(f"[ERROR] invalid entrance data: {data!r}")
-                return
-            
-            data_type, metric_name, value = parts
-            if data_type == "SEN":
-                if metric_name == "RFID_ACCESS":
-                    self.le_e_id.setText(str(value))
-                    self.label_e_approv.setText("✅")
-                elif metric_name == "RFID_DENY":
-                    self.le_e_id.setText(str(value))
-                    self.label_e_approv.setText("❌")
-                elif metric_name == "MOTOR" and value == "-1":
-                    self.le_e_id.clear()
-                    self.label_e_approv.setText("")
-        
-        elif device_name == 'dht_00':
-            try:
-                if "SEN,TEM" in data and "HUM" in data:
-                    parts = data.split(',')
-                    temperature = float(parts[2])
-                    humidity = int(parts[4])
-                    
-                    self.lcdNumber_temp.display(temperature)
-                    self.lcdNumber_hu.display(humidity)
-                    
-                    self.graph_canvas.update_graph(temperature, humidity)
-            except Exception as e:
-                print(f"Error in dht_00 data handling from data '{data}': {e}")
-        
-        elif device_name == 'cur_00':
-            parts = data.split(',')
-            if len(parts) < 2:
-                print(f"[ERROR] invalid curtain data: {data!r}")
-                return
-            
-            data_type = parts[0]
-            metric_name = parts[1]
+        handler = handlers.get(device_name)
+        if handler:
+            handler(data)
+        else:
+            print(f"No handler for device {device_name}")
 
-            if data_type == 'SEN':
+    def _handle_ele_00_data(self, data):
+        if data.startswith("ACK,FLOOR,") or data.startswith("ACK,CANCEL,"):
+            try:
+                floor = int(data.split(',')[2])
+                if floor == 1:
+                    self.label_ele_1f.setText("")
+                elif floor == 2:
+                    self.label_ele_2f.setText("")
+                elif floor == 3:
+                    self.label_ele_3f.setText("")
+            except (ValueError, IndexError) as e:
+                print(f"Error parsing elevator ACK from data '{data}': {e}")
+        elif data.startswith("SEN,FLOOR,"):
+            try:
+                floor_number = int(data.split(',')[2])
+                self.lcdNumber_floor.display(floor_number)
+            except (ValueError, IndexError) as e:
+                print(f"Error parsing elevator floor number from data '{data}': {e}")
+
+    def _handle_ent_00_data(self, data):
+        parts = data.split(',')
+        if len(parts) != 3:
+            print(f"[ERROR] invalid entrance data: {data!r}")
+            return
+        
+        data_type, metric_name, value = parts
+        if data_type == "SEN":
+            if metric_name == "RFID_ACCESS":
+                self.le_e_id.setText(str(value))
+                self.label_e_approv.setText("✅")
+            elif metric_name == "RFID_DENY":
+                self.le_e_id.setText(str(value))
+                self.label_e_approv.setText("❌")
+            elif metric_name == "MOTOR" and value == "-1":
+                self.le_e_id.clear()
+                self.label_e_approv.setText("")
+
+    def _handle_dht_00_data(self, data):
+        try:
+            if "SEN,TEM" in data and "HUM" in data:
+                parts = data.split(',')
+                temperature = float(parts[2])
+                humidity = int(parts[4])
+                
+                self.lcdNumber_temp.display(temperature)
+                self.lcdNumber_hu.display(humidity)
+                
+                self.graph_canvas.update_graph(temperature, humidity)
+        except Exception as e:
+            print(f"Error in dht_00 data handling from data '{data}': {e}")
+    
+    def _handle_cur_00_data(self, data):
+        data = data.strip()
+        if not data:
+            return
+
+        parts = data.split(',')
+        if len(parts) != 3:
+            print(f"[ERROR] invalid frame for cur_00: {data!r}")
+            return
+
+        data_type, metric_name, value = parts
+
+        if data_type == "ACK":
+            if metric_name == "MOTOR":
+                if self.curtain_auto_mode:
+                    self.curtain_auto_mode = False
+                    self._refresh_curtain_controls()
+                self._set_curtain_status_message(f"ACK:{value}")
+            elif metric_name == "MODE":
+                self.curtain_auto_mode = value.upper() == "AUTO"
+                self._refresh_curtain_controls()
+                self._set_curtain_status_message(f"MODE:{value}")
+            elif metric_name == "ERROR":
+                self._set_curtain_status_message(f"ERROR:{value}")
+        elif data_type == "SEN":
+            if metric_name == "LIGHT":
                 try:
-                    value = parts[2]
-                    if metric_name == 'CUR_STEP':
-                        self.progressBar_cur.setValue(int(value))
-                    elif metric_name == 'LIGHT':
-                        self.lcdNumber_lux.display(int(value))
-                except (ValueError, IndexError) as e:
-                    print(f"Error parsing curtain sensor data '{data}': {e}")
-            elif data_type == 'ACK':
-                if len(parts) < 3:
-                    print(f"[ERROR] invalid curtain ack: {data!r}")
-                    return
-                value = parts[2]
-                if metric_name == 'MOTOR':
-                    state = "OPEN" if value == "1" else "CLOSE" if value == "2" else "STOP"
-                    self.label_curState.setText(f"AUTO {state}")
-                elif metric_name == 'STATE':
-                    self.label_curState.setText(value) # e.g., OPEN, CLOSE, STOP
+                    self.lcdNumber_lux.display(float(value))
+                except ValueError:
+                    print(f"[ERROR] invalid light value: {value!r}")
+            elif metric_name == "CUR_STEP":
+                self._update_curtain_progress(value)
+            elif metric_name == "MOTOR_DIR":
+                self._handle_curtain_direction(value)
+        else:
+            print(f"[WARN] unsupported frame type for cur_00: {data_type!r}")
+
+    # --- Curtain Helper Methods ---
+    def _handle_curtain_direction(self, value):
+        try:
+            direction = int(float(value))
+            if direction > 0:
+                motion_text = "열림 중"
+            elif direction < 0:
+                motion_text = "닫힘 중"
+            else:
+                motion_text = "정지"
+            self._set_curtain_motion_state(motion_text)
+        except ValueError:
+            print(f"[ERROR] invalid motor direction: {value!r}")
+
+    def _update_curtain_progress(self, step_value):
+        try:
+            steps = float(step_value)
+            if self.curtain_max_steps > 0:
+                percentage = max(0, min(100, int((steps / self.curtain_max_steps) * 100)))
+                self.progressBar_cur.setValue(percentage)
+        except ValueError:
+            print(f"[ERROR] invalid curtain step value: {step_value!r}")
+
+    def _refresh_curtain_controls(self):
+        self.pushButton_curAuto.setText("커튼 Auto 복귀")
+        self._refresh_curtain_status_label()
+
+    def _set_curtain_motion_state(self, text):
+        self.curtain_motion_state = text
+        self.curtain_status_message = ""
+        self._refresh_curtain_status_label()
+
+    def _set_curtain_status_message(self, text):
+        self.curtain_status_message = text
+        self._refresh_curtain_status_label()
+
+    def _refresh_curtain_status_label(self):
+        mode_text = "AUTO" if self.curtain_auto_mode else "MANUAL"
+        parts = [f"모드: {mode_text}", f"상태: {self.curtain_motion_state}"]
+        if self.curtain_status_message:
+            parts.append(self.curtain_status_message)
+        self.label_curState.setText('  |  '.join(parts))
+
+    def _mark_manual_mode_requested(self):
+        if self.curtain_auto_mode:
+            self.curtain_auto_mode = False
+            self._refresh_curtain_controls()
 
 
 if __name__ == "__main__":
