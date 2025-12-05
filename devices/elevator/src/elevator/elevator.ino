@@ -407,8 +407,8 @@ void setup() {
   pinMode(BUTTONSECOND_PIN, INPUT);
   pinMode(BUTTONTHIRD_PIN, INPUT);
 
-  updateDisplays(0x00, 0xFF); 
-  delay(100); // 잠시 대기하여 초기화된 상태를 확실히 보여줍니다. 
+  //updateDisplays(0x00, 0xFF); 
+  //delay(100); // 잠시 대기하여 초기화된 상태를 확실히 보여줍니다. 
   // --- 💡 새로 추가된 초기화 코드 끝 💡 ---
 
   Serial.println("SEN,FLOOR,1");
