@@ -116,7 +116,7 @@ smart-home-iot/
 ├── service/
 │   ├── app/
 │   │   └── main.py           # Flask 서버 실행
-│   ├── pyqt/
+└── ├── pyqt/
         └── dashboard.py      # PyQT6 대시보드 실행
 
 ```
