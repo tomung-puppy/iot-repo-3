@@ -113,10 +113,10 @@ smart-home-iot/
 │   │   └── elevator.ino      # 엘리베이터 제어
 │   ├── dht/
 │   │   └── dht.ino           # 온습도 제어
-├── service/
-│   ├── app/
-│   │   └── main.py           # Flask 서버 실행
-└── ├── pyqt/
+└── service/
+    ├── app/
+    │   └── main.py           # Flask 서버 실행
+    └── pyqt/
         └── dashboard.py      # PyQT6 대시보드 실행
 
 ```
